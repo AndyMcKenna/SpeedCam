@@ -105,6 +105,7 @@ namespace SpeedCam.VideoAnalyzer.Analyze
                         carRecords.Remove(completed);
                     }
 
+                    //display progress output
                     var fps = Math.Round(currentFrame / stopwatch.Elapsed.TotalSeconds, 2);
                     var percentDone = (currentFrame / (double)frameCount) * 100;
                     var timeRemaining = TimeSpan.FromSeconds((frameCount - currentFrame) / fps);
@@ -127,6 +128,7 @@ namespace SpeedCam.VideoAnalyzer.Analyze
             Console.WriteLine("");
             Console.WriteLine($"{entries.Count} cars in {stopwatch.Elapsed.ToString(@"hh\:mm\:ss")}");
 
+            //save all entries to the DB and their photos to disk
             foreach (var entry in entries)
             {
                 Console.WriteLine($"{entry.DateAdded.ToString("hh:mm:ss")}: {entry.Direction} - {entry.Speed:N2}");
@@ -141,8 +143,9 @@ namespace SpeedCam.VideoAnalyzer.Analyze
                         Message = $"Photo for #{entry.Id} has not been updated!",
                         StackTrace = ""
                     });
-
                 }
+
+                //save the picture if it exists
                 if (entry.Picture != null)
                 {
                     using (var fileStream = new FileStream(Path.Combine(Config.PhotoFolder, $"{entry.Id}.jpg"), FileMode.Create))
@@ -159,12 +162,13 @@ namespace SpeedCam.VideoAnalyzer.Analyze
         {
             Mat fgMask = new Mat();
 
+            //get the mask of what changed.  Everything unchanged will be black
             bgSubtractor.Apply(frame, fgMask);
 
+            //pad detected changes to a minimum size of 10x10
             var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(10, 10));
             var closing = new Mat();
             var opening = new Mat();
-            var dilation = new Mat();
             Cv2.MorphologyEx(fgMask, closing, MorphTypes.Close, kernel);
             Cv2.MorphologyEx(closing, opening, MorphTypes.Open, kernel);
             Cv2.Dilate(opening, fgMask, kernel);
@@ -184,6 +188,7 @@ namespace SpeedCam.VideoAnalyzer.Analyze
                 cars.Add(boundingRect);
             }
 
+            //group rectangles together so you don't rectangles inside of rectangles
             if (groupRectangles)
             {
                 var duplicateCars = new List<Rect>(cars);
@@ -207,6 +212,12 @@ namespace SpeedCam.VideoAnalyzer.Analyze
             return cars;
         }
 
+        /// <summary>
+        /// Blobs and trackers should each be matched to their nearest neighbor
+        /// </summary>
+        /// <param name="blobs">The detected car rectangles</param>
+        /// <param name="trackers">The existing trackers</param>
+        /// <returns></returns>
         private Dictionary<Rect, int> MatchBlobsToTrackers(List<Rect> blobs, List<CarTracker> trackers)
         {
             Dictionary<int, List<Neighbor>> blobNeighbors = new Dictionary<int, List<Neighbor>>();
@@ -285,6 +296,7 @@ namespace SpeedCam.VideoAnalyzer.Analyze
             return results;
         }
 
+        //Draw a line at the start and end points for visual reference
         private void DrawStartEndLines(Mat frame)
         {
             Cv2.Rectangle(frame, new Rect(Config.LeftStart, 110, 1, 100), Scalar.Green, 3);
