@@ -18,13 +18,16 @@ namespace SpeedCam.Main
         private static CarIdentificationService CarIdentificationService;
         private static IVideoSourceClient ExportService;
         private static IDatabase Database;
+        private static bool IsDebug;
 
         static async Task Main(string[] args)
         {
             Config = Config.Load();
             CarIdentificationService = new CarIdentificationService(Config);
             ExportService = new AmcrestNVRClient(Config);
-            Database = new Database(Config.DbConnectionString);
+            Database = new SqlDatabase(Config.DbConnectionString);
+
+            bool IsDebug = args.Length == 0 || args[0] == "-debug";
 
             while (true)
             {
@@ -147,7 +150,7 @@ namespace SpeedCam.Main
                 else
                 { 
                     DrawSleepyDots(2);
-                    CarIdentificationService.AnalyzeVideo(convertedFile, false);
+                    CarIdentificationService.AnalyzeVideo(convertedFile, IsDebug);
                 }
                 //File.Delete(convertedFile);
             }

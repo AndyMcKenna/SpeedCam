@@ -73,8 +73,8 @@ namespace SpeedCam.VideoAnalyzer.Recording
             //var completedFile = Path.Combine(file.Directory.FullName, "DoneFiles", file.Name);
             var errorFile = Path.Combine(Config.ConvertedErrorFolder, file.Name);
 
-            outputFileName = Path.Combine(@"C:\Users\andy\Videos\Speedcam\ReadyTest\Converted", Path.GetFileNameWithoutExtension(file.Name) + ".mp4");
-            errorFile = Path.Combine(@"C:\Users\andy\Videos\Speedcam\ReadyTest\BadFiles", file.Name);
+            outputFileName = Path.Combine(Config.ConvertedFolder, Path.GetFileNameWithoutExtension(file.Name) + ".mp4");
+            errorFile = Path.Combine(Config.ConvertedErrorFolder, file.Name);
 
             //Use ffmpeg to convert from DAV to x264/MP4            
             var stopwatch = Stopwatch.StartNew();

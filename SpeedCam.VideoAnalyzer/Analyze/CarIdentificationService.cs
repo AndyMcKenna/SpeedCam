@@ -13,12 +13,12 @@ namespace SpeedCam.VideoAnalyzer.Analyze
     {
         private int NextBlobId;
         private int NextTrackerId;
-        private readonly Database Database;
+        private readonly SqlDatabase Database;
         private readonly Config Config;
 
         public CarIdentificationService(Config config)
         {
-            Database = new Database(config.DbConnectionString);
+            Database = new SqlDatabase(config.DbConnectionString);
             NextBlobId = 1;
             NextTrackerId = 1;
             Config = config;

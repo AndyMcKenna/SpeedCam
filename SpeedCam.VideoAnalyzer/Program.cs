@@ -56,7 +56,7 @@ namespace SpeedCam.VideoAnalyzer
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error: {ex.Message}");
-                    var database = new Database(config.DbConnectionString);
+                    var database = new SqlDatabase(config.DbConnectionString);
                     database.LogInsert(new Log
                     {
                         DateAdded = DateTime.Now,

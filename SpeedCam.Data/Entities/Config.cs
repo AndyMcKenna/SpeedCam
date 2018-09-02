@@ -5,9 +5,7 @@ namespace SpeedCam.Data.Entities
 {
     public class Config : BaseEntity
     {
-        public int StartTime { get; set; }
         public int StartTimeSunrise { get; set; }
-        public int EndTime { get; set; }
         public int EndTimeSunset { get; set; }
         public decimal LeftDistance { get; set; }
         public decimal RightDistance { get; set; }
@@ -35,7 +33,7 @@ namespace SpeedCam.Data.Entities
         public static Config Load()
         {
             var connectionString = File.ReadAllText("settings.cfg");
-            var database = new Database(connectionString);
+            var database = new SqlDatabase(connectionString);
             var config = database.GetConfig();
             config.DbConnectionString = connectionString;
 

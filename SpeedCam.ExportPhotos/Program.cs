@@ -25,7 +25,7 @@ namespace SpeedCam.ExportPhotos
             var arguments = ParseArguments(args);
 
             Config = Config.Load();
-            Database = new Database(Config.DbConnectionString);
+            Database = new SqlDatabase(Config.DbConnectionString);
 
             var cars = Database.EntrySearch(arguments.StartDate, arguments.EndDate, arguments.MinSpeed, arguments.MaxSpeed);
 

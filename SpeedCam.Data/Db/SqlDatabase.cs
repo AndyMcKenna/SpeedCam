@@ -7,11 +7,11 @@ using System.Linq;
 
 namespace SpeedCam.Data.Db
 {
-    public class Database : IDatabase
+    public class SqlDatabase : IDatabase
     {
         private string ConnectionString;
 
-        public Database(string connectionString)
+        public SqlDatabase(string connectionString)
         {
             ConnectionString = connectionString;
         }
