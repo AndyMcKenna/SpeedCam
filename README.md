@@ -34,9 +34,7 @@ The interesting part of the program.  OpenCV is used to subtract the background 
 
 ## Configuration
 
-* **StartTime** - not yet  used
 * **StartTimeSunrise** - the minutes after sunrise to start exporting video.  A negative value would be before sunrise
-* **EndTime** - not yet used
 * **EndTimeSunset** - the minutes after sunset to stop exporting video.
 * **LeftDistance** - the distance in feet that vehicles travelling to the left will traverse
 * **RightDistance** - the distance in feet that vehicles travelling to the right will traverse
