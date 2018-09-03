@@ -91,6 +91,18 @@ namespace SpeedCam.Data.Db
             }
         }
 
+        public DateChunk GetLatestDateChunk()
+        {
+            using (var connection = new SqlConnection(ConnectionString))
+            {
+                connection.Open();
+
+                var chunk = connection.Query<DateChunk>(@"SELECT * From DateChunk ORDER BY StartDate DESC");
+
+                return chunk.FirstOrDefault();
+            }
+        }
+
         public void UpdateDateChunk(DateChunk chunk)
         {
             using (var connection = new SqlConnection(ConnectionString))
@@ -109,6 +121,16 @@ namespace SpeedCam.Data.Db
 
                 var id = connection.QueryFirst<int>("INSERT INTO DateChunk (StartDate, ProcessingTime, LengthMinutes, ExportDone, DateProcessed) VALUES (@startDate, @processingTime, @lengthMinutes, @exportDone, @dateProcessed);SELECT CAST(SCOPE_IDENTITY() as INT)", chunk);
                 chunk.Id = id;
+            }
+        }
+
+        public void DeleteDateChunk(DateChunk chunk)
+        {
+            using (var connection = new SqlConnection(ConnectionString))
+            {
+                connection.Open();
+
+                connection.Execute("DELETE FROM DateChunk WHERE Id = @id", chunk);
             }
         }
 

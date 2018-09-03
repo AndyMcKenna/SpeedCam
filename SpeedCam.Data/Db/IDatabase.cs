@@ -15,8 +15,10 @@ namespace SpeedCam.Data.Db
         void LogInsert(Log log);
 
         DateChunk GetNextDateChunk();
+        DateChunk GetLatestDateChunk();
         void UpdateDateChunk(DateChunk chunk);
         void InsertDateChunk(DateChunk chunk);
+        void DeleteDateChunk(DateChunk chunk);
 
         MakeUp GetNextMakeUp();
         void InsertMakeUp(MakeUp makeUp);

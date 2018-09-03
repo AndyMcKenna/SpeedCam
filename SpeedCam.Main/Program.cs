@@ -35,6 +35,13 @@ namespace SpeedCam.Main
             //process normally
             if (specificFlagIndex == -1)
             {
+                //if the last chunk was not completed, delete it so it can start over
+                var latestChunk = Database.GetLatestDateChunk();
+                if(latestChunk != null && latestChunk.ProcessingTime == 0)
+                {
+                    Database.DeleteDateChunk(latestChunk);
+                }
+
                 while (true)
                 {
                     try
