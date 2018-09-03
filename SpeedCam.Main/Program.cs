@@ -7,6 +7,7 @@ using SpeedCam.VideoAnalyzer.Recording;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,36 +28,57 @@ namespace SpeedCam.Main
             ExportService = new AmcrestNVRClient(Config);
             Database = new SqlDatabase(Config.DbConnectionString);
 
-            bool IsDebug = args.Length == 0 || args[0] == "-debug";
+            IsDebug = args.Any(a => a == "-debug");
 
-            while (true)
+            var specificFlagIndex = Array.IndexOf(args, "-s");
+
+            //process normally
+            if (specificFlagIndex == -1)
             {
-                try
+                while (true)
                 {
-                    var makeUp = Database.GetNextMakeUp();
-                    if(makeUp != null)
+                    try
                     {
-                        await ProcessMakeUp(makeUp);
+                        var makeUp = Database.GetNextMakeUp();
+                        if (makeUp != null)
+                        {
+                            await ProcessMakeUp(makeUp);
+                        }
+                        else
+                        {
+                            await ProcessNextChunk();
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        await ProcessNextChunk();
+                        Database.LogInsert(new Log
+                        {
+                            DateAdded = DateTime.Now,
+                            Message = $"Error in main loop: {ex.Message}",
+                            StackTrace = ex.StackTrace
+                        });
+                        Console.WriteLine($"ERROR: {ex.Message}");
                     }
-                }
-                catch(Exception ex)
-                {
-                    Database.LogInsert(new Log
-                    {
-                        DateAdded = DateTime.Now,
-                        Message = $"Error in main loop: {ex.Message}",
-                        StackTrace = ex.StackTrace
-                    });
-                    Console.WriteLine($"ERROR: {ex.Message}");
-                }
 
-                DrawSleepyDots(5);
-                Console.WriteLine("");
-            }            
+                    DrawSleepyDots(5);
+                    Console.WriteLine("");
+                }
+            }
+            else //process a specific datetime
+            {
+                if(args.Length < specificFlagIndex + 3)
+                {
+                    Console.WriteLine("The Specific flag requires a datetime and length");
+                    return;
+                }
+                else
+                {
+                    var startDate = DateTime.Parse(args[specificFlagIndex + 1]);
+                    var chunkTime = int.Parse(args[specificFlagIndex + 2]);
+
+                    await ProcessFootage(startDate, chunkTime, () => { return; });
+                }
+            }
         }
 
         static async Task ProcessMakeUp(MakeUp makeUp)
@@ -65,7 +87,7 @@ namespace SpeedCam.Main
             Database.UpdateMakeUp(makeUp);
             try
             {
-                await ProcessFootage(makeUp.StartDate, makeUp.LengthMinutes, null);
+                await ProcessFootage(makeUp.StartDate, makeUp.LengthMinutes, () => { return; });
                 Database.DeleteMakeUp(makeUp);
             }
             catch (Exception ex)
@@ -127,7 +149,7 @@ namespace SpeedCam.Main
             }
         }
 
-        static async Task ProcessFootage(DateTime startDate, int lengthMinutes, Action exportCompleted)
+        static async Task ProcessFootage(DateTime startDate, int lengthMinutes, Action exportCompleted, bool logResults = true)
         {
             var rawFile = await ExportService.ExportVideo(startDate, startDate.AddMinutes(lengthMinutes), Config.VideoChannel);
             exportCompleted();

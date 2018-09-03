@@ -37,6 +37,7 @@ namespace SpeedCam.VideoAnalyzer.Analyze
             var stopwatch = Stopwatch.StartNew();
             var frameCount = 0;
             var frame = new Mat();
+            var realTimeSpeed = new RealTimeSpeed(isDebug);
             var bgSub = BackgroundSubtractorMOG.Create(200, 100);
 
             var carRecords = new List<CarTracker>();
@@ -103,6 +104,9 @@ namespace SpeedCam.VideoAnalyzer.Analyze
                     {
                         entries.Add(completed.Car);
                         carRecords.Remove(completed);
+
+                        realTimeSpeed.StopFrame = 60;
+                        realTimeSpeed.Speed = (int)Math.Floor(completed.Car.Speed);
                     }
 
                     //display progress output
@@ -114,6 +118,7 @@ namespace SpeedCam.VideoAnalyzer.Analyze
                     {
                         DrawStartEndLines(frame);
                         DrawTime(startDate, currentFrame, frame);
+                        realTimeSpeed.DrawSpeeds(frame);
                         Cv2.ImShow("Frame", frame);
                         Cv2.WaitKey(1);                        
                     }
@@ -128,29 +133,32 @@ namespace SpeedCam.VideoAnalyzer.Analyze
             Console.WriteLine("");
             Console.WriteLine($"{entries.Count} cars in {stopwatch.Elapsed.ToString(@"hh\:mm\:ss")}");
 
-            //save all entries to the DB and their photos to disk
-            foreach (var entry in entries)
+            //save all entries to the DB and their photos to disk if debug is false
+            if (!isDebug)
             {
-                Console.WriteLine($"{entry.DateAdded.ToString("hh:mm:ss")}: {entry.Direction} - {entry.Speed:N2}");
-
-                Database.EntryInsert(entry);
-                
-                if(!entry.PhotoUpdated)
+                foreach (var entry in entries)
                 {
-                    Database.LogInsert(new Log
-                    {
-                        DateAdded = DateTime.Now,
-                        Message = $"Photo for #{entry.Id} has not been updated!",
-                        StackTrace = ""
-                    });
-                }
+                    Console.WriteLine($"{entry.DateAdded.ToString("hh:mm:ss")}: {entry.Direction} - {entry.Speed:N2}");
 
-                //save the picture if it exists
-                if (entry.Picture != null)
-                {
-                    using (var fileStream = new FileStream(Path.Combine(Config.PhotoFolder, $"{entry.Id}.jpg"), FileMode.Create))
+                    Database.EntryInsert(entry);
+
+                    if (!entry.PhotoUpdated)
                     {
-                        fileStream.Write(entry.Picture, 0, entry.Picture.Length);
+                        Database.LogInsert(new Log
+                        {
+                            DateAdded = DateTime.Now,
+                            Message = $"Photo for #{entry.Id} has not been updated!",
+                            StackTrace = ""
+                        });
+                    }
+
+                    //save the picture if it exists
+                    if (entry.Picture != null)
+                    {
+                        using (var fileStream = new FileStream(Path.Combine(Config.PhotoFolder, $"{entry.Id}.jpg"), FileMode.Create))
+                        {
+                            fileStream.Write(entry.Picture, 0, entry.Picture.Length);
+                        }
                     }
                 }
             }
@@ -182,6 +190,7 @@ namespace SpeedCam.VideoAnalyzer.Analyze
                 //TODO:  Add to config
                 if (boundingRect.Width < 130 
                  || boundingRect.Height < 40 
+                 || boundingRect.Bottom < 120
                  || boundingRect.Height > 210)
                     continue;
 

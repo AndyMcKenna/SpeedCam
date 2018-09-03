@@ -184,7 +184,7 @@ namespace SpeedCam.VideoAnalyzer.Analyze
         /// </summary>
         public void ValidateTracker(int frameHeight)
         {
-            if(Rect.Top < 5 || Rect.Bottom > frameHeight - 5)
+            if(Rect.Bottom > frameHeight - 5)
             {
                 IsInvalid = true;
             }
