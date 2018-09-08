@@ -10,6 +10,7 @@ namespace SpeedCam.Data.Entities
         public int LengthMinutes { get; set; }
         public bool ExportDone { get; set; }
         public DateTime? DateProcessed { get; set; }
+        public string MachineName { get; set; }
     }
 
     public static class DateChunkExtensions

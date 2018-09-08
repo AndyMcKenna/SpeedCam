@@ -37,7 +37,7 @@ namespace SpeedCam.Main
             {
                 //if the last chunk was not completed, delete it so it can start over
                 var latestChunk = Database.GetLatestDateChunk();
-                if(latestChunk != null && latestChunk.ProcessingTime == 0)
+                if(ShouldDeleteLatestChunk(latestChunk))
                 {
                     Database.DeleteDateChunk(latestChunk);
                 }
@@ -90,11 +90,11 @@ namespace SpeedCam.Main
 
         static async Task ProcessMakeUp(MakeUp makeUp)
         {
-            makeUp.InProgress = true;
+            makeUp.MachineName = GetMachineId();
             Database.UpdateMakeUp(makeUp);
             try
             {
-                await ProcessFootage(makeUp.StartDate, makeUp.LengthMinutes, () => { return; });
+                await ProcessFootage(makeUp.StartDate, makeUp.LengthMinutes, () => MakeUpExported(makeUp));
                 Database.DeleteMakeUp(makeUp);
             }
             catch (Exception ex)
@@ -105,7 +105,8 @@ namespace SpeedCam.Main
                     Message = $"Make Up: {makeUp.StartDate} - Message: {ex.Message}",
                     StackTrace = ex.StackTrace
                 });
-                makeUp.InProgress = false;
+                makeUp.ExportDone = false;
+                makeUp.MachineName = null;
                 Database.UpdateMakeUp(makeUp);
             }
         }
@@ -119,6 +120,7 @@ namespace SpeedCam.Main
             }
 
             nextChunk.LengthMinutes = Config.ChunkTime;
+            nextChunk.MachineName = GetMachineId();
             nextChunk = ValidateDateChunk(nextChunk);
             if(nextChunk == null)
             {
@@ -144,7 +146,8 @@ namespace SpeedCam.Main
                 Database.InsertMakeUp(new MakeUp
                 {
                     StartDate = nextChunk.StartDate,
-                    LengthMinutes = nextChunk.LengthMinutes
+                    LengthMinutes = nextChunk.LengthMinutes,
+                    ExportDone = false
                 });
             }
             finally
@@ -196,8 +199,15 @@ namespace SpeedCam.Main
             Database.UpdateDateChunk(chunk);
         }
 
+        static void MakeUpExported(MakeUp makeUp)
+        {
+            makeUp.ExportDone = true;
+            Database.UpdateMakeUp(makeUp);
+        }
+
         static void DrawSleepyDots(int seconds)
         {
+            Console.Write($"{DateTime.Now.ToString("HH:mm:ss tt")}: ");
             for (int i = 0; i < seconds; i++)
             {
                 Thread.Sleep(1000);
@@ -241,6 +251,23 @@ namespace SpeedCam.Main
 
             //it's the middle of the day
             return chunk.IsInThePast() ? chunk : null;
+        }
+
+        static string GetMachineId()
+        {
+            return $"{Environment.MachineName}:{Process.GetCurrentProcess().Id}";
+        }
+
+        static bool ShouldDeleteLatestChunk(DateChunk chunk)
+        {
+            if (chunk == null)
+                return false;
+
+            //This should be updated to make sure only OUR program on dotnet core is counted but it's good enough for now
+            var alreadyRunning = Process.GetProcessesByName("dotnet").Count() > 1;
+            var sameMachine = chunk.MachineName?.StartsWith(Environment.MachineName) ?? false;
+
+            return chunk.ProcessingTime == 0 && !alreadyRunning && sameMachine;
         }
     }
 }

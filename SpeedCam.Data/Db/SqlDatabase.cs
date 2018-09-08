@@ -119,7 +119,7 @@ namespace SpeedCam.Data.Db
             {
                 connection.Open();
 
-                var id = connection.QueryFirst<int>("INSERT INTO DateChunk (StartDate, ProcessingTime, LengthMinutes, ExportDone, DateProcessed) VALUES (@startDate, @processingTime, @lengthMinutes, @exportDone, @dateProcessed);SELECT CAST(SCOPE_IDENTITY() as INT)", chunk);
+                var id = connection.QueryFirst<int>("INSERT INTO DateChunk (StartDate, ProcessingTime, LengthMinutes, ExportDone, DateProcessed, MachineName) VALUES (@startDate, @processingTime, @lengthMinutes, @exportDone, @dateProcessed, @machineName);SELECT CAST(SCOPE_IDENTITY() as INT)", chunk);
                 chunk.Id = id;
             }
         }
@@ -140,7 +140,7 @@ namespace SpeedCam.Data.Db
             {
                 connection.Open();
 
-                var results = connection.Query<MakeUp>("SELECT * FROM MakeUp WHERE InProgress = 0 ORDER BY StartDate");
+                var results = connection.Query<MakeUp>("SELECT * FROM MakeUp WHERE DateProcessed IS NULL AND MachineName IS NULL ORDER BY StartDate");
                 return results.FirstOrDefault();
             }
         }
@@ -151,7 +151,7 @@ namespace SpeedCam.Data.Db
             {
                 connection.Open();
 
-                var id = connection.QueryFirst("INSERT INTO MakeUp (StartDate, LengthMinutes, InProgress) VALUES (@startDate, @lengthMinutes, @inProgress);SELECT CAST(SCOPE_IDENTITY() as INT)", makeUp);
+                var id = connection.QueryFirst("INSERT INTO MakeUp (StartDate, LengthMinutes, ExportDone, MachineName) VALUES (@startDate, @lengthMinutes, @exportDone, @machineName);SELECT CAST(SCOPE_IDENTITY() as INT)", makeUp);
                 makeUp.Id = id;
             }
         }
@@ -162,7 +162,7 @@ namespace SpeedCam.Data.Db
             {
                 connection.Open();
 
-                connection.Execute("UPDATE MakeUp SET InProgress = @inProgress WHERE Id = @id", makeUp);
+                connection.Execute("UPDATE MakeUp SET ExportDone = @exportDone, DateProcessed = @dateProcessed, MachineName = @machineName WHERE Id = @id", makeUp);
             }
         }
 

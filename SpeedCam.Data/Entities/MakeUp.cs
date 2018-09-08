@@ -7,6 +7,8 @@ namespace SpeedCam.Data.Entities
         public int Id { get; set; }
         public DateTime StartDate { get; set; }
         public int LengthMinutes { get; set; }
-        public bool InProgress { get; set; }
+        public bool ExportDone { get; set; }
+        public DateTime? DateProcessed { get; set; }
+        public string MachineName { get; set; }
     }
 }
