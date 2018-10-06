@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using SpeedCam.VideoAnalyzer.Analyze;
+using SpeedCam.Data;
 
 namespace SpeedCam.VideoAnalyzer
 {

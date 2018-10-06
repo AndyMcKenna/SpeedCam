@@ -172,7 +172,7 @@ namespace SpeedCam.VideoAnalyzer.Analyze
                 graphics.DrawPath(outlinePen, p);
                 graphics.FillPath(new SolidBrush(Color.White), p);
 
-                image.Save(outputStream, ImageFormat.Png);
+                image.Save(outputStream, ImageFormat.Jpeg);
 
                 Car.Picture = outputStream.ToArray();
                 Car.PhotoUpdated = true;

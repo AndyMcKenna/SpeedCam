@@ -6,6 +6,7 @@ using System.Linq;
 using OpenCvSharp;
 using SpeedCam.Data.Entities;
 using SpeedCam.Data.Db;
+using SpeedCam.Data;
 
 namespace SpeedCam.VideoAnalyzer.Analyze
 {

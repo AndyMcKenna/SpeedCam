@@ -1,5 +1,6 @@
 ﻿using Innovative.Geometry;
 using Innovative.SolarCalculator;
+using SpeedCam.Data;
 using SpeedCam.Data.Db;
 using SpeedCam.Data.Entities;
 using SpeedCam.VideoAnalyzer.Analyze;
@@ -20,71 +21,101 @@ namespace SpeedCam.Main
         private static IVideoSourceClient ExportService;
         private static IDatabase Database;
         private static bool IsDebug;
+        private static bool VideoOnly;
+        private static DateTime LastActiveTime;
+        private static TimeSpan ShutdownTime;
 
         static async Task Main(string[] args)
         {
-            Config = Config.Load();
-            CarIdentificationService = new CarIdentificationService(Config);
-            ExportService = new AmcrestNVRClient(Config);
-            Database = new SqlDatabase(Config.DbConnectionString);
-
-            IsDebug = args.Any(a => a == "-debug");
-
-            var specificFlagIndex = Array.IndexOf(args, "-s");
-
-            //process normally
-            if (specificFlagIndex == -1)
+            try
             {
-                //if the last chunk was not completed, delete it so it can start over
-                var latestChunk = Database.GetLatestDateChunk();
-                if(ShouldDeleteLatestChunk(latestChunk))
+                Config = Config.Load();
+                CarIdentificationService = new CarIdentificationService(Config);
+                ExportService = new AmcrestNVRClient(Config);
+                Database = new SqlDatabase(Config.DbConnectionString);
+
+                IsDebug = args.Any(a => a == "-debug");
+                var specificFlagIndex = Array.IndexOf(args, "-s");
+
+                VideoOnly = args.Any(a => a == "-v");
+
+                var idleFlagIndex = Array.IndexOf(args, "-shutdown");
+                ShutdownTime = idleFlagIndex != -1 ? TimeSpan.FromMinutes(Convert.ToDouble(args[idleFlagIndex + 1])) : TimeSpan.MinValue;
+
+                //process normally
+                if (specificFlagIndex == -1)
                 {
-                    Database.DeleteDateChunk(latestChunk);
+                    //if the last chunk was not completed, delete it so it can start over
+                    var latestChunk = Database.GetLatestDateChunk();
+                    if (ShouldDeleteLatestChunk(latestChunk))
+                    {
+                        Database.DeleteDateChunk(latestChunk);
+                    }
+
+                    LastActiveTime = DateTime.Now;
+
+                    while (true)
+                    {
+                        try
+                        {
+                            var makeUp = Database.GetNextMakeUp();
+                            if (makeUp != null)
+                            {
+                                await ProcessMakeUp(makeUp);
+                            }
+                            else
+                            {
+                                var workDone = await ProcessNextChunk();
+                                if (workDone)
+                                {
+                                    LastActiveTime = DateTime.Now;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Database.LogInsert(new Log
+                            {
+                                DateAdded = DateTime.Now,
+                                Message = $"Error in main loop: {ex.Message}",
+                                StackTrace = ex.StackTrace
+                            });
+                            Console.WriteLine($"ERROR: {ex.Message}");
+                        }
+
+                        DrawSleepyDots(5);
+                        Console.WriteLine("");
+
+                        if (ShutdownTime != TimeSpan.MinValue && (DateTime.Now - LastActiveTime).TotalMinutes > ShutdownTime.TotalMinutes)
+                        {
+                            return;
+                        }
+                    }
                 }
-
-                while (true)
+                else //process a specific datetime
                 {
-                    try
+                    if (args.Length < specificFlagIndex + 3)
                     {
-                        var makeUp = Database.GetNextMakeUp();
-                        if (makeUp != null)
-                        {
-                            await ProcessMakeUp(makeUp);
-                        }
-                        else
-                        {
-                            await ProcessNextChunk();
-                        }
+                        Console.WriteLine("The Specific flag requires a datetime and length");
+                        return;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        Database.LogInsert(new Log
-                        {
-                            DateAdded = DateTime.Now,
-                            Message = $"Error in main loop: {ex.Message}",
-                            StackTrace = ex.StackTrace
-                        });
-                        Console.WriteLine($"ERROR: {ex.Message}");
-                    }
+                        var startDate = DateTime.Parse(args[specificFlagIndex + 1]);
+                        var chunkTime = int.Parse(args[specificFlagIndex + 2]);
 
-                    DrawSleepyDots(5);
-                    Console.WriteLine("");
+                        await ProcessFootage(startDate, chunkTime, () => { return; });
+                    }
                 }
             }
-            else //process a specific datetime
+            catch(Exception ex)
             {
-                if(args.Length < specificFlagIndex + 3)
+                Database.LogInsert(new Log
                 {
-                    Console.WriteLine("The Specific flag requires a datetime and length");
-                    return;
-                }
-                else
-                {
-                    var startDate = DateTime.Parse(args[specificFlagIndex + 1]);
-                    var chunkTime = int.Parse(args[specificFlagIndex + 2]);
-
-                    await ProcessFootage(startDate, chunkTime, () => { return; });
-                }
+                    DateAdded = DateTime.Now,
+                    Message = $"Error analyzing footage: {ex.Message}",
+                    StackTrace = ex.StackTrace
+                });
             }
         }
 
@@ -111,12 +142,12 @@ namespace SpeedCam.Main
             }
         }
 
-        static async Task ProcessNextChunk()
+        static async Task<bool> ProcessNextChunk()
         {
             var nextChunk = Database.GetNextDateChunk();
             if(nextChunk == null)
             {
-                return;
+                return false;
             }
 
             nextChunk.LengthMinutes = Config.ChunkTime;
@@ -124,7 +155,7 @@ namespace SpeedCam.Main
             nextChunk = ValidateDateChunk(nextChunk);
             if(nextChunk == null)
             {
-                return;
+                return false;
             }
 
             Database.InsertDateChunk(nextChunk);
@@ -157,6 +188,8 @@ namespace SpeedCam.Main
 
                 Database.UpdateDateChunk(nextChunk);
             }
+
+            return true;
         }
 
         static async Task ProcessFootage(DateTime startDate, int lengthMinutes, Action exportCompleted, bool logResults = true)
@@ -182,7 +215,10 @@ namespace SpeedCam.Main
                 else
                 { 
                     DrawSleepyDots(2);
-                    CarIdentificationService.AnalyzeVideo(convertedFile, IsDebug);
+                    if (!VideoOnly)
+                    {
+                        CarIdentificationService.AnalyzeVideo(convertedFile, IsDebug);
+                    }
                 }
                 //File.Delete(convertedFile);
             }
